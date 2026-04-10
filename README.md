@@ -28,12 +28,22 @@ Double-tap and hold a hotkey to highlight anything on your screen. Works with an
 
 ## Install
 
+### Download
+
+1. Download `Beacon-1.0.dmg` from [Releases](https://github.com/Vijay-Duke/beacon/releases)
+2. Open the DMG and drag `Beacon.app` to your Applications folder
+3. **Important:** The app is not code-signed. macOS will block it with a "damaged" warning. Run this once to fix it:
+   ```bash
+   xattr -cr /Applications/Beacon.app
+   ```
+4. Launch Beacon and grant Accessibility permission when prompted
+
 ### Build from source
 
 Requires Xcode Command Line Tools and macOS 14+.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/beacon.git
+git clone https://github.com/Vijay-Duke/beacon.git
 cd beacon
 ./install.sh
 ```
