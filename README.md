@@ -28,11 +28,20 @@ Double-tap and hold a hotkey to highlight anything on your screen. Works with an
 
 ## Install
 
-### Download
+### Homebrew (recommended)
+
+```bash
+brew tap Vijay-Duke/tap
+brew install beacon
+```
+
+This builds from source -- no Gatekeeper warnings, no code-signing issues.
+
+### Download DMG
 
 1. Download `Beacon-1.0.dmg` from [Releases](https://github.com/Vijay-Duke/beacon/releases)
-2. Open the DMG and drag `Beacon.app` to your Applications folder
-3. **Important:** The app is not code-signed. macOS will block it with a "damaged" warning. Run this once to fix it:
+2. Open the DMG and drag `Beacon.app` to Applications
+3. The app is not code-signed, so macOS will block it. Run this once:
    ```bash
    xattr -cr /Applications/Beacon.app
    ```
