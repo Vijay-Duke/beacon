@@ -82,8 +82,10 @@ class CrosshairRenderer: LaserRenderer {
         self.color = color
         self.size = size
         if let host = hostLayer {
+            let savedPosition = containerLayer?.position ?? .zero
             deactivate()
             activate(on: host)
+            updatePosition(savedPosition)
         }
     }
 }

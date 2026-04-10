@@ -1,5 +1,5 @@
 import XCTest
-@testable import LaserTool
+@testable import Beacon
 
 final class GestureDetectorTests: XCTestCase {
     var detector: GestureDetector!

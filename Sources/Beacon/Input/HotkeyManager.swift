@@ -8,7 +8,8 @@ class HotkeyManager {
     var onKeyUp: ((UInt16) -> Void)?
     var onRightClick: ((CGPoint) -> Void)?
     var onMouseMoved: ((CGPoint) -> Void)?
-    var trackedKeyCode: UInt16 = 62
+    var trackedKeyCode: UInt16 = 56
+    private var isTrackedKeyDown = false
 
     func start() -> Bool {
         let eventMask: CGEventMask = (
@@ -28,7 +29,7 @@ class HotkeyManager {
             callback: hotkeyCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
-            NSLog("LaserTool: Failed to create event tap. Check Accessibility permissions.")
+            NSLog("Beacon: Failed to create event tap. Check Accessibility permissions.")
             return false
         }
 
@@ -54,26 +55,31 @@ class HotkeyManager {
         switch type {
         case .keyDown:
             let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-            if keyCode == trackedKeyCode {
+            if keyCode == trackedKeyCode && !isTrackedKeyDown {
                 if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+                    isTrackedKeyDown = true
                     onKeyDown?(keyCode)
                 }
             }
 
         case .keyUp:
             let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-            if keyCode == trackedKeyCode {
+            if keyCode == trackedKeyCode && isTrackedKeyDown {
+                isTrackedKeyDown = false
                 onKeyUp?(keyCode)
             }
 
         case .flagsChanged:
+            // flagsChanged fires with the keyCode of the specific physical key that changed.
+            // We use isTrackedKeyDown as a toggle rather than checking aggregate flags,
+            // because aggregate flags (e.g., .maskShift) can't distinguish left from right.
             let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             if keyCode == trackedKeyCode {
-                let flags = event.flags
-                let isPressed = isModifierPressed(keyCode: keyCode, flags: flags)
-                if isPressed {
+                if !isTrackedKeyDown {
+                    isTrackedKeyDown = true
                     onKeyDown?(keyCode)
                 } else {
+                    isTrackedKeyDown = false
                     onKeyUp?(keyCode)
                 }
             }
@@ -91,16 +97,6 @@ class HotkeyManager {
         }
     }
 
-    private func isModifierPressed(keyCode: UInt16, flags: CGEventFlags) -> Bool {
-        switch keyCode {
-        case 62, 59: return flags.contains(.maskControl)
-        case 58, 61: return flags.contains(.maskAlternate)
-        case 56, 60: return flags.contains(.maskShift)
-        case 55, 54: return flags.contains(.maskCommand)
-        default: return false
-        }
-    }
-
     static func checkAccessibilityPermission() -> Bool {
         let trusted = AXIsProcessTrustedWithOptions(
             [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
@@ -115,16 +111,16 @@ private func hotkeyCallback(
     event: CGEvent,
     userInfo: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-    guard let userInfo = userInfo else { return Unmanaged.passRetained(event) }
+    guard let userInfo = userInfo else { return Unmanaged.passUnretained(event) }
     let manager = Unmanaged<HotkeyManager>.fromOpaque(userInfo).takeUnretainedValue()
 
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         if let tap = manager.eventTap {
             CGEvent.tapEnable(tap: tap, enable: true)
         }
-        return Unmanaged.passRetained(event)
+        return Unmanaged.passUnretained(event)
     }
 
     manager.handleEvent(type, event: event)
-    return Unmanaged.passRetained(event)
+    return Unmanaged.passUnretained(event)
 }

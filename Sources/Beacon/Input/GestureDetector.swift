@@ -42,11 +42,14 @@ class GestureDetector {
 
         case .waitingForSecondPress:
             windowTimer?.invalidate()
-            windowTimer = Timer.scheduledTimer(withTimeInterval: doubleClickWindow, repeats: false) { [weak self] _ in
+            let timer = Timer(timeInterval: doubleClickWindow, repeats: false) { [weak self] _ in
                 self?.state = .idle
                 self?.firstPressTime = nil
                 self?.windowTimer = nil
             }
+            // Use .common mode so the timer fires during menu tracking and other modal events
+            RunLoop.current.add(timer, forMode: .common)
+            windowTimer = timer
 
         case .active:
             state = .idle

@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "LaserTool",
+    name: "Beacon",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "LaserTool",
-            path: "Sources/LaserTool",
+            name: "Beacon",
+            path: "Sources/Beacon",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),
@@ -15,9 +15,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "LaserToolTests",
-            dependencies: ["LaserTool"],
-            path: "Tests/LaserToolTests"
+            name: "BeaconTests",
+            dependencies: ["Beacon"],
+            path: "Tests/BeaconTests"
         ),
     ]
 )

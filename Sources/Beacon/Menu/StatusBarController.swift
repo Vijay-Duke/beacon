@@ -8,8 +8,11 @@ class StatusBarController {
     var onPreferencesRequested: (() -> Void)?
     var onQuit: (() -> Void)?
     private var currentStyle: LaserStyle = .classicDot
+    private var currentColor: LaserColor = .red
 
-    func setup() {
+    func setup(style: LaserStyle, color: LaserColor) {
+        currentStyle = style
+        currentColor = color
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         updateIcon(active: false)
         buildMenu()
@@ -18,10 +21,20 @@ class StatusBarController {
     func updateIcon(active: Bool) {
         guard let button = statusItem?.button else { return }
         if let image = NSImage(systemSymbolName: active ? "circle.fill" : "circle",
-                               accessibilityDescription: "LaserTool") {
+                               accessibilityDescription: "Beacon") {
             image.isTemplate = true
             button.image = image
         }
+    }
+
+    func updateStyle(_ style: LaserStyle) {
+        currentStyle = style
+        buildMenu()
+    }
+
+    func updateColor(_ color: LaserColor) {
+        currentColor = color
+        buildMenu()
     }
 
     private func buildMenu() {
@@ -45,6 +58,7 @@ class StatusBarController {
             let item = NSMenuItem(title: color.rawValue.capitalized, action: #selector(colorSelected(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = color.rawValue
+            if color == currentColor { item.state = .on }
             colorMenu.addItem(item)
         }
         colorItem.submenu = colorMenu
@@ -58,7 +72,7 @@ class StatusBarController {
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit LaserTool", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit Beacon", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
@@ -76,7 +90,9 @@ class StatusBarController {
     @objc private func colorSelected(_ sender: NSMenuItem) {
         guard let rawValue = sender.representedObject as? String,
               let color = LaserColor(rawValue: rawValue) else { return }
+        currentColor = color
         onColorChanged?(color)
+        buildMenu()
     }
 
     @objc private func openPreferences() {

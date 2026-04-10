@@ -31,14 +31,13 @@ class ContextMenuController {
         menu.addItem(prefsItem)
 
         overlayController.setIgnoresMouseEvents(false)
+        defer { overlayController.setIgnoresMouseEvents(true) }
 
         if let view = overlayController.overlayView(for: screenPoint),
            let window = view.window {
             let windowPoint = window.convertPoint(fromScreen: screenPoint)
             menu.popUp(positioning: nil, at: windowPoint, in: view)
         }
-
-        overlayController.setIgnoresMouseEvents(true)
     }
 
     @objc private func styleSelected(_ sender: NSMenuItem) {

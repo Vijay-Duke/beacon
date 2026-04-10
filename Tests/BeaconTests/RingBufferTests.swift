@@ -1,5 +1,5 @@
 import XCTest
-@testable import LaserTool
+@testable import Beacon
 
 final class RingBufferTests: XCTestCase {
     func testEmptyBuffer() {

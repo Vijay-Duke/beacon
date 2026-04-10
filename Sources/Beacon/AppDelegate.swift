@@ -12,6 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var preferencesWindow: NSWindow?
 
     private var activeRenderer: LaserRenderer?
+    private var activeOverlayView: OverlayView?
     private var isLaserActive = false
 
     override init() {
@@ -20,20 +21,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             onStateChangeHolder?(active)
         }
         super.init()
+        // CGEvent tap runs on the main run loop, so callbacks are already on the main thread
         onStateChangeHolder = { [weak self] active in
-            DispatchQueue.main.async {
-                if active {
-                    self?.activateLaser()
-                } else {
-                    self?.deactivateLaser()
-                }
+            if active {
+                self?.activateLaser()
+            } else {
+                self?.deactivateLaser()
             }
         }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !HotkeyManager.checkAccessibilityPermission() {
-            NSLog("LaserTool: Accessibility permission required. Please grant it in System Settings > Privacy & Security > Accessibility.")
+            NSLog("Beacon: Accessibility permission required. Please grant it in System Settings > Privacy & Security > Accessibility.")
         }
 
         overlayController.createOverlays()
@@ -48,25 +48,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeyManager.onMouseMoved = { [weak self] point in
             self?.mouseTracker.handleMouseMoved(point)
         }
-        hotkeyManager.onRightClick = { [weak self] point in
+        hotkeyManager.onRightClick = { [weak self] _ in
             guard let self = self, self.isLaserActive else { return }
-            DispatchQueue.main.async {
-                self.contextMenu.showMenu(at: NSPoint(x: point.x, y: point.y), on: self.overlayController)
-            }
+            let screenPoint = NSEvent.mouseLocation
+            self.contextMenu.showMenu(at: screenPoint, on: self.overlayController)
         }
 
         if !hotkeyManager.start() {
-            NSLog("LaserTool: Failed to start hotkey manager.")
+            NSLog("Beacon: Failed to start hotkey manager.")
         }
 
         mouseTracker.onPositionChanged = { [weak self] point in
             guard let self = self, self.isLaserActive else { return }
-            DispatchQueue.main.async {
-                self.updateLaserPosition(point)
-            }
+            self.updateLaserPosition(point)
         }
 
-        statusBar.setup()
+        // Propagate hotkey changes at runtime
+        prefs.onHotkeyChanged = { [weak self] newKeyCode in
+            self?.hotkeyManager.trackedKeyCode = newKeyCode
+            self?.gestureDetector.reset()
+        }
+
+        // Size changes — lightweight, just update appearance on existing renderer
+        prefs.onAppearanceChanged = { [weak self] in
+            guard let self = self, self.isLaserActive else { return }
+            self.activeRenderer?.updateAppearance(
+                color: self.prefs.laserColor.nsColor,
+                size: self.prefs.laserSize
+            )
+        }
+
+        // Style-specific settings (trail length, dim opacity, etc.) — need renderer rebuild
+        prefs.onRendererSettingsChanged = { [weak self] in
+            guard let self = self, self.isLaserActive else { return }
+            self.switchRenderer()
+        }
+
+        statusBar.setup(style: prefs.laserStyle, color: prefs.laserColor)
         statusBar.onStyleChanged = { [weak self] style in
             self?.prefs.laserStyle = style
             if self?.isLaserActive == true {
@@ -89,10 +107,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         contextMenu.onStyleChanged = { [weak self] style in
             self?.prefs.laserStyle = style
+            self?.statusBar.updateStyle(style)
             self?.switchRenderer()
         }
         contextMenu.onColorChanged = { [weak self] color in
             self?.prefs.laserColor = color
+            self?.statusBar.updateColor(color)
             self?.activeRenderer?.updateAppearance(
                 color: color.nsColor,
                 size: self?.prefs.laserSize ?? 24
@@ -109,7 +129,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        NSLog("LaserTool: Ready. Double-click and hold Right Control to activate.")
+        NSLog("Beacon: Ready. Double-click and hold activation key to activate.")
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -123,14 +143,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         isLaserActive = true
         statusBar.updateIcon(active: true)
 
+        let mouseLocation = NSEvent.mouseLocation
         let renderer = createRenderer(for: prefs.laserStyle)
         activeRenderer = renderer
 
-        if let view = overlayController.overlayViews.first, let layer = view.layer {
+        if let view = overlayController.overlayView(for: mouseLocation), let layer = view.layer {
             renderer.activate(on: layer)
+            activeOverlayView = view
         }
 
-        let mouseLocation = NSEvent.mouseLocation
         updateLaserPosition(mouseLocation)
     }
 
@@ -139,6 +160,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusBar.updateIcon(active: false)
         activeRenderer?.deactivate()
         activeRenderer = nil
+        activeOverlayView = nil
     }
 
     private func switchRenderer() {
@@ -149,16 +171,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let renderer = createRenderer(for: prefs.laserStyle)
         activeRenderer = renderer
 
-        if let view = overlayController.overlayViews.first, let layer = view.layer {
+        if let view = overlayController.overlayView(for: mousePos), let layer = view.layer {
             renderer.activate(on: layer)
+            activeOverlayView = view
         }
         updateLaserPosition(mousePos)
     }
 
     private func updateLaserPosition(_ screenPoint: NSPoint) {
-        guard let view = overlayController.overlayView(for: screenPoint) else { return }
+        guard let renderer = activeRenderer else { return }
+
+        // Check if mouse moved to a different screen
+        if let newView = overlayController.overlayView(for: screenPoint),
+           newView !== activeOverlayView,
+           let newLayer = newView.layer {
+            renderer.deactivate()
+            renderer.activate(on: newLayer)
+            activeOverlayView = newView
+        }
+
+        guard let view = activeOverlayView else { return }
         let localPoint = overlayController.convertToOverlay(screenPoint, in: view)
-        activeRenderer?.updatePosition(localPoint)
+        renderer.updatePosition(localPoint)
     }
 
     private func createRenderer(for style: LaserStyle) -> LaserRenderer {
@@ -167,7 +201,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let r = ClassicDotRenderer()
             r.trailEnabled = prefs.trailEnabled
             r.trailLength = prefs.trailLength
-            r.trailFadeSpeed = prefs.trailFadeSpeed
             r.updateAppearance(color: prefs.laserColor.nsColor, size: prefs.laserSize)
             return r
         case .spotlight:
@@ -199,12 +232,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let prefsView = PreferencesView(prefs: prefs)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 450, height: 350),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 380),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        window.title = "LaserTool Preferences"
+        window.title = "Beacon Preferences"
         window.contentView = NSHostingView(rootView: prefsView)
         window.center()
         window.isReleasedWhenClosed = false

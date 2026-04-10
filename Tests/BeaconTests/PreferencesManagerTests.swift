@@ -1,5 +1,5 @@
 import XCTest
-@testable import LaserTool
+@testable import Beacon
 
 final class PreferencesManagerTests: XCTestCase {
     var prefs: PreferencesManager!
@@ -42,7 +42,8 @@ final class PreferencesManagerTests: XCTestCase {
     }
 
     func testDefaultHotkeyCode() {
-        XCTAssertEqual(prefs.hotkeyKeyCode, 62)
+        // Left Shift = keyCode 56
+        XCTAssertEqual(prefs.hotkeyKeyCode, 56)
     }
 
     func testSetAndGetStyle() {

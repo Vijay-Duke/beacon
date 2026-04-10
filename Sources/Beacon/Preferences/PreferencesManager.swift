@@ -23,6 +23,9 @@ enum LaserColor: String, CaseIterable {
 
 class PreferencesManager: ObservableObject {
     private let defaults: UserDefaults
+    var onHotkeyChanged: ((UInt16) -> Void)?
+    var onAppearanceChanged: (() -> Void)?      // color/size — lightweight update
+    var onRendererSettingsChanged: (() -> Void)? // style-specific — needs renderer rebuild
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -35,7 +38,7 @@ class PreferencesManager: ObservableObject {
 
     var laserColor: LaserColor {
         get { LaserColor(rawValue: defaults.string(forKey: "laserColor") ?? "") ?? .red }
-        set { defaults.set(newValue.rawValue, forKey: "laserColor") }
+        set { defaults.set(newValue.rawValue, forKey: "laserColor"); objectWillChange.send() }
     }
 
     var laserSize: CGFloat {
@@ -43,7 +46,7 @@ class PreferencesManager: ObservableObject {
             let val = defaults.double(forKey: "laserSize")
             return val > 0 ? val : 24.0
         }
-        set { defaults.set(newValue, forKey: "laserSize") }
+        set { defaults.set(newValue, forKey: "laserSize"); objectWillChange.send(); onAppearanceChanged?() }
     }
 
     var trailEnabled: Bool {
@@ -51,7 +54,7 @@ class PreferencesManager: ObservableObject {
             if defaults.object(forKey: "trailEnabled") == nil { return true }
             return defaults.bool(forKey: "trailEnabled")
         }
-        set { defaults.set(newValue, forKey: "trailEnabled") }
+        set { defaults.set(newValue, forKey: "trailEnabled"); objectWillChange.send(); onRendererSettingsChanged?() }
     }
 
     var trailLength: Int {
@@ -59,15 +62,7 @@ class PreferencesManager: ObservableObject {
             let val = defaults.integer(forKey: "trailLength")
             return val > 0 ? val : 30
         }
-        set { defaults.set(newValue, forKey: "trailLength") }
-    }
-
-    var trailFadeSpeed: Double {
-        get {
-            let val = defaults.double(forKey: "trailFadeSpeed")
-            return val > 0 ? val : 0.3
-        }
-        set { defaults.set(newValue, forKey: "trailFadeSpeed") }
+        set { defaults.set(newValue, forKey: "trailLength"); objectWillChange.send(); onRendererSettingsChanged?() }
     }
 
     var spotlightDimOpacity: Double {
@@ -75,7 +70,7 @@ class PreferencesManager: ObservableObject {
             let val = defaults.double(forKey: "spotlightDimOpacity")
             return val > 0 ? val : 0.6
         }
-        set { defaults.set(newValue, forKey: "spotlightDimOpacity") }
+        set { defaults.set(newValue, forKey: "spotlightDimOpacity"); objectWillChange.send(); onRendererSettingsChanged?() }
     }
 
     var haloPulseSpeed: Double {
@@ -83,7 +78,7 @@ class PreferencesManager: ObservableObject {
             let val = defaults.double(forKey: "haloPulseSpeed")
             return val > 0 ? val : 1.2
         }
-        set { defaults.set(newValue, forKey: "haloPulseSpeed") }
+        set { defaults.set(newValue, forKey: "haloPulseSpeed"); objectWillChange.send(); onRendererSettingsChanged?() }
     }
 
     var crosshairThickness: CGFloat {
@@ -91,19 +86,18 @@ class PreferencesManager: ObservableObject {
             let val = defaults.double(forKey: "crosshairThickness")
             return val > 0 ? val : 1.5
         }
-        set { defaults.set(newValue, forKey: "crosshairThickness") }
+        set { defaults.set(newValue, forKey: "crosshairThickness"); objectWillChange.send(); onRendererSettingsChanged?() }
     }
 
     var hotkeyKeyCode: UInt16 {
         get {
-            if defaults.object(forKey: "hotkeyKeyCode") == nil { return 62 }
+            if defaults.object(forKey: "hotkeyKeyCode") == nil { return 56 }
             return UInt16(defaults.integer(forKey: "hotkeyKeyCode"))
         }
-        set { defaults.set(Int(newValue), forKey: "hotkeyKeyCode") }
-    }
-
-    var launchAtLogin: Bool {
-        get { defaults.bool(forKey: "launchAtLogin") }
-        set { defaults.set(newValue, forKey: "launchAtLogin") }
+        set {
+            defaults.set(Int(newValue), forKey: "hotkeyKeyCode")
+            objectWillChange.send()
+            onHotkeyChanged?(newValue)
+        }
     }
 }

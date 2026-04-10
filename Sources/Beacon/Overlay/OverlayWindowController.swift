@@ -18,9 +18,9 @@ class OverlayWindowController {
             window.hasShadow = false
             window.backgroundColor = .clear
             window.ignoresMouseEvents = true
-            window.collectionBehavior = [.canJoinAllSpaces, .stationary]
+            window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
 
-            let overlayView = OverlayView(frame: screen.frame)
+            let overlayView = OverlayView(frame: NSRect(origin: .zero, size: screen.frame.size))
             window.contentView = overlayView
 
             window.orderFrontRegardless()
@@ -44,7 +44,7 @@ class OverlayWindowController {
                 return overlayViews[i]
             }
         }
-        return overlayViews.first
+        return nil
     }
 
     func convertToOverlay(_ screenPoint: NSPoint, in view: OverlayView) -> NSPoint {

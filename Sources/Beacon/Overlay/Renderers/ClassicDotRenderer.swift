@@ -11,7 +11,6 @@ class ClassicDotRenderer: LaserRenderer {
     var trailLength: Int = 30 {
         didSet { trail.capacity = trailLength }
     }
-    var trailFadeSpeed: Double = 0.3
     private var color: NSColor = .red
     private var size: CGFloat = 24.0
 
