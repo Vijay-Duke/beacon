@@ -98,10 +98,9 @@ class HotkeyManager {
     }
 
     static func checkAccessibilityPermission() -> Bool {
-        let trusted = AXIsProcessTrustedWithOptions(
-            [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+        return AXIsProcessTrustedWithOptions(
+            [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): false] as CFDictionary
         )
-        return trusted
     }
 }
 

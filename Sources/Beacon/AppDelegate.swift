@@ -32,8 +32,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if !HotkeyManager.checkAccessibilityPermission() {
-            NSLog("Beacon: Accessibility permission required. Please grant it in System Settings > Privacy & Security > Accessibility.")
+        let hasTrust = HotkeyManager.checkAccessibilityPermission()
+        if !hasTrust {
+            let alert = NSAlert()
+            alert.messageText = "Accessibility Permission Required"
+            alert.informativeText = "Beacon needs Accessibility access to detect hotkeys globally.\n\nGo to System Settings > Privacy & Security > Accessibility and enable Beacon, then relaunch the app."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Quit")
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            }
+            NSApp.terminate(nil)
+            return
         }
 
         overlayController.createOverlays()
@@ -55,7 +67,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if !hotkeyManager.start() {
-            NSLog("Beacon: Failed to start hotkey manager.")
+            let alert = NSAlert()
+            alert.messageText = "Failed to Start Hotkey Monitor"
+            alert.informativeText = "Beacon could not create the global event tap. Try:\n\n1. Toggle Accessibility permission off and on for Beacon\n2. Restart Beacon\n3. Restart your Mac if the issue persists"
+            alert.alertStyle = .critical
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Quit")
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            }
+            NSApp.terminate(nil)
+            return
         }
 
         mouseTracker.onPositionChanged = { [weak self] point in
